@@ -197,8 +197,13 @@ try {
         } catch (error) {}
         throw new Error(`${serverUrl} HTTP Error: ${parseResponse.status} ${parseResponse.statusText}${message ? ` - ${message}` : ''}`);
     }
-    const parseResult = await parseResponse.json();
-    const splits = parseResult.splits;
+    let parseResult, splits;
+    try {
+        parseResult = await parseResponse.json();
+        splits = parseResult.splits;
+    } catch (error) {
+        throw new Error(`Error when parsing json of ${serverUrl}/parse_pdf: ${error.message}`);
+    }
 
     // Step 2: Generate summary
     itemProgress.setProgress(40);
@@ -225,7 +230,12 @@ try {
         } catch (error) {}
         throw new Error(`${serverUrl} HTTP Error: ${htmlResponse.status} ${htmlResponse.statusText}${message ? ` - ${message}` : ''}`);
     }
-    const htmlResult = await htmlResponse.json();
+    let htmlResult;
+    try {
+        htmlResult = await htmlResponse.json();
+    } catch (error) {
+        throw new Error(`Error when parsing json of ${serverUrl}/md_to_html: ${error.message}`);
+    }
 
     // Create note with HTML content
     let newNote = new Zotero.Item('note');
@@ -268,7 +278,12 @@ async function openaiRequest(message) {
         throw new Error(`${openaiBaseUrl} HTTP Error: ${response.status} ${response.statusText}${message ? ` - ${message}` : ''}`);
     }
 
-    const result = await response.json();
+    let result;
+    try {
+        result = await response.json();
+    } catch (error) {
+        throw new Error(`Error when parsing json of ${openaiBaseUrl}/chat/completions: ${error.message}`);
+    }
     if (!result.choices) {
         throw new Error("LLM API call failed!");
     }
