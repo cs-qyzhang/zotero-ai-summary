@@ -13,6 +13,8 @@ let only_link_file = false;
 let timeout = 30;
 // OpenAI-compatible API base URL
 let openaiBaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+// Gemini
+// let openaiBaseUrl = "https://generativelanguage.googleapis.com/v1beta/openai/";
 // Model name
 let modelName = "qwen-plus-latest";
 // API key
