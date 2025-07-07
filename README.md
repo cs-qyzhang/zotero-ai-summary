@@ -35,6 +35,8 @@ let serverUrl = "https://paper_summarizer.jianyue.tech";
 let only_link_file = false;
 let timeout = 30;
 let openaiBaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+// Gemini
+// let openaiBaseUrl = "https://generativelanguage.googleapis.com/v1beta/openai/";
 let modelName = "qwen-plus-latest";
 let apiKey = "sk-xxxxxxxxxxxxx";
 let chunkSize = 64000;
