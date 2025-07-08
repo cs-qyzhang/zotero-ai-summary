@@ -23,6 +23,8 @@ let apiKey = "sk-xxxxxxxxxxxxx";
 let chunkSize = 64000;
 // The overlap between chunks of text to process
 let chunkOverlap = 1000;
+// Header of generated note
+let headerTemplate = "<h2>AI Generated Summary ({{modelName}})</h2>"
 
 // The following prompts are used to generate the summary. You can modify them
 // to change the summary language and style. The simplest way is translate the
@@ -141,7 +143,8 @@ try {
     for (const id of noteIds) {
         let note = Zotero.Items.get(id);
         let content = note.getNote();
-        if (content.search("<h2>AI Generated Summary") >= 0) {
+        let header = headerTemplate.replace("{{modelName}}", modelName);
+        if (content.startsWith(header)) {
             summary_exist = true;
             break;
         }
@@ -219,6 +222,7 @@ try {
     htmlFormData.append('title', title);
     htmlFormData.append('markdown', markdownSummary);
     htmlFormData.append('model_name', modelName);
+    htmlFormData.append('header_template', headerTemplate);
 
     const htmlResponse = await fetch(`${serverUrl}/md_to_html`, {
         method: "POST",
