@@ -238,6 +238,7 @@ async def convert_md_to_html(
     request: Request,
     markdown: str = Form(...),
     model_name: str = Form(...),
+    header_template: str = Form(default="<h2>AI Generated Summary ({{modelName}})</h2>"),
 ):
     print(f'------------- /md_to_html ({datetime.now().strftime("%Y-%m-%d %H:%M:%S")}) -------------')
     """将 Markdown 转换为 HTML"""
@@ -245,7 +246,8 @@ async def convert_md_to_html(
         summary = post_process_summary(markdown)
         md = MarkdownIt()
         html = md.render(summary)
-        html = f"<h2>AI Generated Summary ({model_name})</h2>" + html
+        header_html = header_template.replace("{{modelName}}", model_name)
+        html = header_html + html
         return {"html": html}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
