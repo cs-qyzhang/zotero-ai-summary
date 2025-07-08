@@ -247,6 +247,7 @@ try {
     let newNote = new Zotero.Item('note');
     newNote.setNote(htmlResult.html);
     newNote.parentID = item.id;
+    newNote.libraryID = item.libraryID;
     await newNote.saveTx();
 
     itemProgress.setProgress(100);
