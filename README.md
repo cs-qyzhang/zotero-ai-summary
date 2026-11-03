@@ -12,6 +12,50 @@ Workflow: this tool is implemented as a script for [zotero-actions-tags](https:/
 
 ## 部署 | Setup
 
+### 自己跑一个服务端 | Run the server yourself
+
+服务端只做两件轻量的事：把 PDF 拆成文本片段、把 markdown 转成 html；**LLM 调用发生在 Zotero 本地**。
+
+```bash
+python server.py                      # 默认 127.0.0.1:13210，可加 --host/--port/--unix-socket
+```
+
+依赖见 `pyproject.toml`（`poetry install`，或 `pip install -r <(poetry export ...)`）。
+生产部署（systemd + nginx + 资源限制 + 自愈）见 **[deploy/README.md](deploy/README.md)**。
+
+| 接口 | 说明 |
+|---|---|
+| `POST /parse_pdf` | 上传 PDF，返回 `splits`（每个分片的 `content`） |
+| `POST /md_to_html` | markdown → html（带 header 模板） |
+| `GET /healthz` | 探活/自检：`inflight`、`queued`、`worker_runs`、`worker_kills`、`last_worker` |
+
+PDF 解析在**受资源限制的子进程**里完成（`pdf_worker.py`：PyMuPDF + 逐页提取 + 累计字符/页数/分片预算 + `RLIMIT_AS/CPU/FSIZE`），
+主进程有准入控制与限流，因此单个坏 PDF 不会拖垮服务。全部限制与调参见 `deploy/README.md`。
+
+可选：本地命令行总结（用 `~/.config/llm.json` 里的配置调 LLM，不经过服务端）
+
+```bash
+python paper_summary.py "<URI-encoded title>" "<URI-encoded pdf_path>"
+```
+
+### 项目结构 | Layout
+
+```
+server.py            FastAPI 服务：路由、准入控制、限流、日志、/healthz、watchdog
+pdf_worker.py        子进程 worker：PDF 文本提取（PyMuPDF）与各项预算
+paper_summary.py     可选本地 CLI：直接调 LLM 总结（prompts/ 下是提示词）
+prompts/             stuff / map / reduce 提示词（供 CLI 使用）
+zotero_script.js     Zotero (zotero-actions-tags) 端脚本：上传 → 本地调 LLM → 写笔记
+scripts/             回归与巡检工具
+  smoke.sh             单次冒烟测试
+  regress.sh           全量回归（正常/文本炸弹/病态论文/300 页/并发/伪造 XFF）
+  mk_*.py              测试用 PDF 生成器
+  rss_watch.py         监控服务进程树 RSS 峰值
+deploy/              宿主机配置（systemd drop-in / nginx / logrotate / 回滚）与回归报告
+```
+
+### 安装 Zotero 插件 | Install the Zotero plugin
+
 安装 [zotero-actions-tags](https://github.com/windingwind/zotero-actions-tags) 插件，并按照下图配置。
 
 Install the [zotero-actions-tags](https://github.com/windingwind/zotero-actions-tags) plugin and configure it as shown below:
@@ -46,7 +90,7 @@ let mapPrompt = "";
 let reducePrompt = "";
 ```
 
-- **`serverUrl`**：用于解析 PDF 文件和将总结后的 markdown 转换为 html 的服务器地址。默认为作者公开的服务器。**如果你需要对敏感文件总结，推荐自己部署**，只需 clone 本仓库后执行 `python server.py` 即可。
+- **`serverUrl`**：用于解析 PDF 文件和将总结后的 markdown 转换为 html 的服务器地址。默认为作者公开的服务器。**如果你需要对敏感文件总结，推荐自己部署**，只需 clone 本仓库后执行 `python server.py` 即可（依赖见 `pyproject.toml`；服务只提供 `POST /parse_pdf`、`POST /md_to_html`、`GET /healthz` 三个接口，PDF 解析在受限制的子进程里完成，详见 `deploy/README.md`）。
 - **`only_link_file`**：配合 [ZotMoov](https://github.com/wileyyugioh/zotmoov) 或 [ZotFile](https://github.com/jlegewie/zotfile) 使用。如果使用这两个或类似的插件将论文 PDF 以 Zotero 的 "Link to File" 形式保存，则应设置 `only_link_file` 为 `true`，否则设置为 `false`。
 - **`timeout`**：配合 [ZotMoov](https://github.com/wileyyugioh/zotmoov) 或 [ZotFile](https://github.com/jlegewie/zotfile) 使用。在新增论文时，最多等待多少秒后检查 PDF 是否下载完成。
 - **`openaiBaseUrl`**：OpenAI 兼容的 api 地址。具体的地址取决于使用的模型提供商，默认是通义千问，详见 <https://www.aliyun.com/product/bailian>。

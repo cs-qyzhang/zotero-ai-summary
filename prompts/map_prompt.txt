@@ -1,4 +1,4 @@
-You are given a portion of a research paper "{title}" (a “chunk” of text). Your task is to produce a succinct and accurate summary of this chunk. Focus on the core ideas, methods, and any critical results or takeaways presented in this section.
+You are given a portion of a research paper "{title}" (a "chunk" of text). Your task is to produce a succinct and accurate summary of this chunk. Focus on the core ideas, methods, and any critical results or takeaways presented in this section.
 
 Chunk content:
 --- START OF CHUNK ---

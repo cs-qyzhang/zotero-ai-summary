@@ -1,0 +1,23 @@
+__APP_DIR__/*.log {
+    daily
+    rotate 7
+    compress
+    missingok
+    notifempty
+    copytruncate
+
+    # 这里必须是 `su root root`，两个坑同时踩过：
+    #
+    # 1) 不带 su 时：
+    #    error: skipping ".../server.log" because parent directory has insecure
+    #    permissions (It's world writable or writable by group which is not "root")
+    #    —— 项目目录对组可写、且组不是 root 时（例如 drwxrwxr-x <user> <group>）。
+    #
+    # 2) 带 `su <user> <group>` 时：
+    #    error: error opening ".../server.log: Permission denied
+    #    —— server.log 是 systemd(StandardOutput=append:) 以 root 创建的 root:root 0644。
+    #
+    # 所以让 logrotate 以 root 身份旋转（su root root 满足 1 的安全检查，同时有权限写 2）。
+    # 服务进程用 O_APPEND 打开日志，copytruncate 截断后下一次写从 0 开始，不会留空洞。
+    su root root
+}

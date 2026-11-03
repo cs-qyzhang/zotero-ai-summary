@@ -1,0 +1,22 @@
+[Unit]
+Description=Zotero AI Summary (PDF parse + markdown->html) service
+After=network.target
+
+[Service]
+# __APP_USER__ / __APP_GROUP__ are rendered by deploy/apply.sh
+User=__APP_USER__
+Group=__APP_GROUP__
+
+# 日志写到项目目录；logrotate 配置见 deploy/logrotate-paper-summarizer
+StandardOutput=append:__APP_DIR__/server.log
+StandardError=append:__APP_DIR__/server.err.log
+
+WorkingDirectory=__APP_DIR__
+
+# 建议使用装了依赖的虚拟环境解释器（conda/venv 均可）
+ExecStart=__PYTHON__ __APP_DIR__/server.py --port __APP_PORT__
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

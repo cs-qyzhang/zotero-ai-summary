@@ -16,6 +16,8 @@ langchain-community = "^0.3.16"
 langchain-core = "^0.3.34"
 langchain-openai = "^0.3.4"
 pypdf = "^5.2.0"
+pymupdf = ">=1.24.3"   # 主用提取器：比 pypdf 快 1-2 个数量级且内存可控
+langchain-text-splitters = "^0.3.5"
 python-multipart = "^0.0.20"
 slowapi = "^0.1.9"
 

@@ -1,7 +1,18 @@
 __pycache__/
+*.py[cod]
+.venv/
+venv/
+.idea/
+.vscode/
+
+# runtime data
 summary/
 uploads/
-test.sh
 *.db
 *.log
-poetry.lock
+*.log.*
+test.log
+error.log
+
+# host-specific config backups written by deploy/apply.sh
+deploy/backup/

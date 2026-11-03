@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily safety restart for paper-summarizer.service
+
+[Timer]
+# 每天 02:00 触发；本地时区由系统时钟决定
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

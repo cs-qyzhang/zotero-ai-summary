@@ -1,0 +1,8 @@
+[Unit]
+Description=Restart paper-summarizer.service (daily safety restart)
+
+[Service]
+Type=oneshot
+# reset-failed first: a unit stuck in `failed` because of a start-limit hit
+# refuses plain restarts.
+ExecStart=/bin/sh -c 'systemctl reset-failed paper-summarizer.service || true; systemctl restart paper-summarizer.service'
