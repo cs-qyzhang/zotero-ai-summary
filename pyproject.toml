@@ -8,17 +8,14 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-fastapi = "^0.115.8"
-uvicorn = "^0.34.0"
+fastapi = "^0.162.0"
+uvicorn = "^0.54.0"
 markdown-it-py = "^3.0.0"
-langchain = "^0.3.17"
-langchain-community = "^0.3.16"
-langchain-core = "^0.3.34"
-langchain-openai = "^0.3.4"
-pypdf = "^5.2.0"
-pymupdf = ">=1.24.3"   # 主用提取器：比 pypdf 快 1-2 个数量级且内存可控
-langchain-text-splitters = "^0.3.5"
-python-multipart = "^0.0.20"
+langchain-core = "^1.7.4"
+langchain-openai = "^1.7.3"
+pymupdf = ">=1.24.3,<2.0.0"   # 唯一 PDF 提取器；2.x 会拖入 onnxruntime 等重型依赖
+langchain-text-splitters = "^1.1.3"
+python-multipart = ">=0.0.31,<0.1.0"
 slowapi = "^0.1.9"
 
 

@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import unquote
 from markdown_it import MarkdownIt
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chains.summarize import load_summarize_chain
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
@@ -52,6 +52,7 @@ class PaperSummarizer:
         except Exception as e:
             raise Exception(f"Error reading API key: {str(e)}")
 
+        self.context_len = context_len
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=context_len, chunk_overlap=1000, length_function=len
         )
@@ -86,19 +87,10 @@ class PaperSummarizer:
                 template=map_prompt_template, input_variables=["text", "title"]
             )
 
-        # Create summarize chain
-        self.stuff_chain = load_summarize_chain(
-            llm=self.llm,
-            chain_type="stuff",
-            prompt=stuff_prompt,
-        )
-
-        self.mapreduce_chain = load_summarize_chain(
-            llm=self.llm,
-            chain_type="map_reduce",
-            map_prompt=map_prompt,
-            combine_prompt=reduce_prompt,
-        )
+        # LCEL chains: map applies to each split, reduce combines partials.
+        self.stuff_chain = stuff_prompt | self.llm | StrOutputParser()
+        self.map_chain = map_prompt | self.llm | StrOutputParser()
+        self.reduce_chain = reduce_prompt | self.llm | StrOutputParser()
 
     def post_process_summary(self, summary: str) -> str:
         """去掉模型常见的 ``` 包裹和开头的 "Summary:" 标题，保留全部内容。
@@ -123,6 +115,31 @@ class PaperSummarizer:
                 lines = lines[1:]
         return "\n".join(lines).strip()
 
+    def _reduce(self, partials: list[str], title: str) -> str:
+        """Combine partial summaries, collapsing in context-sized batches."""
+        while len(partials) > 1:
+            batches: list[str] = []
+            batch: list[str] = []
+            size = 0
+            for text in partials:
+                if batch and size + len(text) > self.context_len:
+                    batches.append("\n\n".join(batch))
+                    batch, size = [], 0
+                batch.append(text)
+                size += len(text)
+            if batch:
+                batches.append("\n\n".join(batch))
+            if len(batches) == len(partials):
+                # A single partial already exceeds the context; best effort.
+                return self.reduce_chain.invoke(
+                    {"text": "\n\n".join(partials), "title": title}
+                )
+            partials = [
+                self.reduce_chain.invoke({"text": text, "title": title})
+                for text in batches
+            ]
+        return partials[0]
+
     def summarize_text(self, title: str, full_text: str) -> str:
         """Summarize already-extracted text (text extraction is the worker's job)."""
         safe_title = Path(title).name or "untitled"
@@ -139,17 +156,24 @@ class PaperSummarizer:
                 return f.read()
 
         start_time = time.time()
-        chain = self.mapreduce_chain if len(splits) > 1 else self.stuff_chain
-        summary = chain.invoke(
-            {"input_documents": splits, "title": safe_title},
-            return_only_outputs=True,
-        )
+        if len(splits) > 1:
+            partials = [
+                self.map_chain.invoke(
+                    {"text": split.page_content, "title": safe_title}
+                )
+                for split in splits
+            ]
+            summary = self._reduce(partials, safe_title)
+        else:
+            summary = self.stuff_chain.invoke(
+                {"text": full_text, "title": safe_title}
+            )
         end_time = time.time()
         print(
             f"Summary time: {end_time - start_time} seconds, input length: {len(full_text)}, "
-            f"output length: {len(summary['output_text'])}"
+            f"output length: {len(summary)}"
         )
-        summary = self.post_process_summary(summary["output_text"])
+        summary = self.post_process_summary(summary)
         md_path = Path(os.path.dirname(__file__), f"summary/{safe_title}.md")
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(summary)
@@ -161,7 +185,7 @@ class PaperSummarizer:
         return html
 
     def summarize_paper(self, title: str, pdf_path: Path) -> str:
-        """Extract text with PyMuPDF (pypdf degenerates on some PDFs) and summarise."""
+        """Extract text with PyMuPDF and summarise."""
         import pymupdf
 
         print(f"Loading PDF: {pdf_path}")

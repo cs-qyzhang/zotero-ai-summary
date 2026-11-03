@@ -58,9 +58,9 @@ def report(**fields) -> None:
 
 @contextmanager
 def time_limit(seconds: float):
-    """SIGALRM based deadline. Interrupts pure-Python code (pypdf) reliably;
-    long C calls (PyMuPDF) are only interrupted once the GIL is handed back,
-    which is why the parent also enforces a hard kill."""
+    """SIGALRM based deadline. Interrupts Python-level work reliably; long C
+    calls (PyMuPDF) are only interrupted once the GIL is handed back, which is
+    why the parent also enforces a hard kill."""
     if not seconds or seconds <= 0:
         yield
         return
@@ -79,43 +79,22 @@ def time_limit(seconds: float):
 
 def open_document(path: str):
     """Return (engine_name, page_count, get_text(page_index), close)."""
+    import pymupdf  # PyMuPDF >= 1.24
+
+    # A malformed PDF can make MuPDF emit a warning per object; redirected so
+    # a 50MB file cannot flood stderr (which the parent has to read).
     try:
-        import pymupdf  # PyMuPDF >= 1.24
-    except ImportError:
-        try:
-            import fitz as pymupdf  # classic import name
-        except ImportError:
-            pymupdf = None
-
-    if pymupdf is not None:
-        # A malformed PDF can make MuPDF emit a warning per object; redirected so
-        # a 50MB file cannot flood stderr (which the parent has to read).
-        try:
-            global _MUPDF_SINK
-            _MUPDF_SINK = open(os.devnull, "w")
-            pymupdf.set_messages(stream=_MUPDF_SINK)
-        except Exception:
-            pass
-        doc = pymupdf.open(path)
-        return (
-            f"pymupdf-{getattr(pymupdf, '__version__', '?')}",
-            doc.page_count,
-            lambda index: doc.load_page(index).get_text("text"),
-            doc.close,
-        )
-
-    import logging
-
-    logging.getLogger("pypdf").setLevel(logging.ERROR)
-    from pypdf import PdfReader
-
-    reader = PdfReader(path)
-    pages = reader.pages
+        global _MUPDF_SINK
+        _MUPDF_SINK = open(os.devnull, "w")
+        pymupdf.set_messages(stream=_MUPDF_SINK)
+    except Exception:
+        pass
+    doc = pymupdf.open(path)
     return (
-        "pypdf",
-        len(pages),
-        lambda index: pages[index].extract_text() or "",
-        lambda: None,
+        f"pymupdf-{getattr(pymupdf, '__version__', '?')}",
+        doc.page_count,
+        lambda index: doc.load_page(index).get_text("text"),
+        doc.close,
     )
 
 
